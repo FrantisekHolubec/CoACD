@@ -52,7 +52,8 @@ public unsafe class CoACD : MonoBehaviour
 		[MarshalAs(UnmanagedType.U1)] bool decimate,
 		int max_ch_vertex,
 		[MarshalAs(UnmanagedType.U1)] bool extrude,
-		double extrude_margin, int apx_mode, uint seed);
+		double extrude_margin, int apx_mode, uint seed,
+		[MarshalAs(UnmanagedType.U1)] bool real_metric);
 
 	public enum PreprocessMode { Auto = 0, On = 1, Off = 2 }
 	public enum ApproximateMode { ConvexHull = 0, Box = 1 }
@@ -68,7 +69,7 @@ public unsafe class CoACD : MonoBehaviour
 		public static Parameters Init() => new Parameters() {
 			threshold = 0.05, preprocessMode = PreprocessMode.Auto, preprocessResolution = 50, sampleResolution = 2000,
 			mctsNodes = 20, mctsIteration = 150, mctsMaxDepth = 3, pca = false, merge = true, maxConvexHull = -1,
-			decimate = false, maxChVertex = 256, extrude = false, extrudeMargin = 0.01, approximateMode = ApproximateMode.ConvexHull, seed = 0
+			decimate = false, maxChVertex = 256, extrude = false, extrudeMargin = 0.01, approximateMode = ApproximateMode.ConvexHull, seed = 0, realMetric = false
 		};
 
 		[Range(0.01f, 1f)]
@@ -111,6 +112,8 @@ public unsafe class CoACD : MonoBehaviour
 		public ApproximateMode approximateMode;
 		[Tooltip("random seed for reproducibility")]
 		public uint seed;
+		[Tooltip("read threshold in metres, for meshes at real-world scale")]
+		public bool realMetric;
 	}
 	public Parameters parameters = Parameters.Init();
 	[SerializeField]
@@ -153,7 +156,7 @@ public unsafe class CoACD : MonoBehaviour
 				var mi = new MeshInterface() {vertices_ptr = vptr, vertices_count = (ulong) mesh.vertexCount, triangles_ptr = fptr, triangles_count = (ulong) (unityF.LongLength / 3)};
 				using var res = Run(ref mi, parameters.threshold, parameters.maxConvexHull, (int) parameters.preprocessMode, parameters.preprocessResolution, parameters.sampleResolution,
 					parameters.mctsNodes, parameters.mctsIteration, parameters.mctsMaxDepth, parameters.pca, parameters.merge,
-					parameters.decimate, parameters.maxChVertex, parameters.extrude, parameters.extrudeMargin, (int) parameters.approximateMode, parameters.seed);
+					parameters.decimate, parameters.maxChVertex, parameters.extrude, parameters.extrudeMargin, (int) parameters.approximateMode, parameters.seed, parameters.realMetric);
 				var meshes = new List<Mesh>();
 				for (ulong i = 0; i < res.meshes_count; i++) {
 					var rmesh = new Mesh();
@@ -190,7 +193,6 @@ public unsafe class CoACD : MonoBehaviour
 	{
 		var  parameters    = this.parameters;
 		var  baseTransform = transform;
-		Mesh mesh          = null;
 		var  path          = "";
 		EditorUtility.DisplayProgressBar("Calculating Colliders", "Discovering meshes...", 0.1f);
 		var originalMeshes    = new List<Mesh>();
@@ -264,7 +266,6 @@ public unsafe class CoACD : MonoBehaviour
 	{
 		var  parameters    = this.parameters;
 		var  baseTransform = transform;
-		Mesh mesh          = null;
 		var  path          = "";
 		EditorUtility.DisplayProgressBar("Calculating Colliders for Hierarchy", "Discovering meshes...", 0.1f);
 		var originalMeshes    = new List<Mesh>();
@@ -414,43 +415,4 @@ public unsafe class CoACD : MonoBehaviour
 		EditorUtility.SetDirty(gameObject);
 	#endif
 	}
-}
-//stores convex mesh assets
-public class CoACDColliderData : ScriptableObject
-{
-	public CoACD.Parameters parameters;
-	public Mesh[]           baseMeshes     = new Mesh[0];
-	public Mesh[]           computedMeshes = new Mesh[0];
-#if UNITY_EDITOR
-
-	public static CoACDColliderData CreateAsset(string path, CoACD.Parameters parameters, Mesh[] meshes, Mesh[] baseMeshes)
-	{
-		var obj = CreateInstance<CoACDColliderData>();
-		AssetDatabase.CreateAsset(obj, path);
-		var c = 0;
-		foreach (var mesh in meshes) {
-			mesh.name = $"Computed Mesh {c++}";
-			AssetDatabase.AddObjectToAsset(mesh, obj);
-		}
-		obj.parameters     = parameters;
-		obj.baseMeshes     = baseMeshes;
-		obj.computedMeshes = meshes;
-		return obj;
-	}
-
-	public void UpdateAsset(CoACD.Parameters parameters, Mesh[] meshes, Mesh[] baseMeshes)
-	{
-		foreach (var mesh in computedMeshes) { AssetDatabase.RemoveObjectFromAsset(mesh); }
-		computedMeshes = null;
-		var c = 0;
-		foreach (var mesh in meshes) {
-			mesh.name = $"Computed Mesh {c++}";
-			AssetDatabase.AddObjectToAsset(mesh, this);
-		}
-		this.parameters = parameters;
-		this.baseMeshes = baseMeshes;
-		computedMeshes  = meshes;
-	}
-
-#endif
 }
