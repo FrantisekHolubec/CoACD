@@ -60,7 +60,7 @@ public unsafe class CoACD : MonoBehaviour
 	public MeshFilter target;
 	public bool isTrigger,
 							hideColliders = true;
-	public PhysicMaterial physicMaterial;
+	public PhysicsMaterial physicMaterial;
 	//struct 
 	[Serializable]
 	public unsafe struct Parameters
