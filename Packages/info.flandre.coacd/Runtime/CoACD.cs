@@ -134,7 +134,11 @@ public unsafe class CoACD : MonoBehaviour
 	}
 #endif
 
-	public List<Mesh> RunACD(Mesh mesh)
+	public List<Mesh> RunACD(Mesh mesh) => Decompose(mesh, parameters);
+
+	public static void SetLogLevel(LogLevel level) => SetLogLevel(level.ToString().ToLowerInvariant());
+
+	public static List<Mesh> Decompose(Mesh mesh, Parameters parameters)
 	{
 		var unityV = mesh.vertices;
 		var unityF = mesh.triangles;
